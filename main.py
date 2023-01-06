@@ -2,17 +2,19 @@ from os import listdir
 from os.path import isfile
 import re
 
+debug = False
 
-def loadDir(path):
+
+def load_dir(path):
     dirs = listdir(path)
     for obj in dirs:
         if isfile(path + "/" + obj):
-            checkFile(path, obj)
+            check_file(path, obj)
         else:
-            loadDir(path + "/" + obj)
+            load_dir(path + "/" + obj)
 
 
-def checkFile(path, file):
+def check_file(path, file):
     if not file.endswith(".lua"):
         return
     if file.startswith("sv_") or file == "init.lua" or 'server' in path:
@@ -29,13 +31,15 @@ def checkFile(path, file):
                 attention = True
                 net_receives.append([])
                 net_receives[len(net_receives) - 1].append(line)
-        net_receives = formatArray(net_receives)
+        net_receives = format_array(net_receives)
         for receive in net_receives:
             is_exploitable, exploit = check_net_receive(receive)
             if not is_exploitable:
-                print("Not exploitable: " + re.search(r'\"(.+?)\"', receive[0]).group(1))
+                if debug:
+                    print("Not exploitable: " + re.search(r'\"(.+?)\"', receive[0]).group(1))
                 continue
-            print("Possible server side exploitable net message: " + re.search(r'\"(.+?)\"', receive[0]).group(1) + "\nReason: " + exploit)
+            print("Possible server side exploitable net message: " + re.search(r'\"(.+?)\"', receive[0]).group(1) +
+                  "\nReason: " + exploit)
     elif file.startswith("cl_") or 'client' in path:
         f = open(path + "/" + file)
         content = f.read()
@@ -50,23 +54,26 @@ def checkFile(path, file):
                 attention = True
                 net_sending.append([])
                 net_sending[len(net_sending) - 1].append(line)
-        net_sending = formatArray(net_sending)
+        net_sending = format_array(net_sending)
         for send in net_sending:
             is_exploitable, exploit = check_net_send(send)
             if not is_exploitable:
-                print("Not exploitable: " + re.search(r'\"(.+?)\"', send[0]).group(1))
+                if debug:
+                    print("Not exploitable: " + re.search(r'\"(.+?)\"', send[0]).group(1))
                 continue
-            print("Possible server side exploitable net message: " + re.search(r'\"(.+?)\"', send[0]).group(1) + "\nReason: " + exploit)
+            print("Possible client side exploitable net message: " + re.search(r'\"(.+?)\"', send[0]).group(1) +
+                  "\nReason: " + exploit)
 
 
 def check_net_send(net_send):
     is_exploitable = False
     exploit = ""
-    local_player_var = ""
     for line in net_send:
         if 'net.WriteEntity' in line and 'LocalPlayer()' in line:
             is_exploitable = True
             exploit = "LocalPlayer getting send"
+
+    return is_exploitable, exploit
 
 
 def check_net_receive(net_receive):
@@ -76,7 +83,8 @@ def check_net_receive(net_receive):
     for line in net_receive:
         if 'if' in line:
             contains_if = True
-            if 'GetUserGroup' not in line or 'getJobTable' not in line or 'Trace' not in line or 'getDarkRPVar' not in line:
+            if 'GetUserGroup' not in line or 'getJobTable' not in line or 'Trace' not in line or \
+                    'getDarkRPVar' not in line:
                 exploit = "No check of permissions"
                 is_exploitable = True
 
@@ -87,7 +95,7 @@ def check_net_receive(net_receive):
     return is_exploitable, exploit
 
 
-def formatArray(big_array):
+def format_array(big_array):
     for i in range(0, len(big_array)):
         array = big_array[i]
         for j in range(0, len(array)):
@@ -102,4 +110,4 @@ def formatArray(big_array):
 
 
 if __name__ == '__main__':
-    loadDir("addons")
+    load_dir("addons")

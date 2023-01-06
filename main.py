@@ -15,20 +15,22 @@ def load_dir(path):
 
 
 def check_file(path, file):
+    # ignore non lua files
     if not file.endswith(".lua"):
         return
+    # Check server side files
     if file.startswith("sv_") or file == "init.lua" or 'server' in path:
         f = open(path + "/" + file)
         content = f.read()
-        attention = False
+        net_receive_listen = False
         net_receives = []
         for line in content.splitlines():
-            if attention:
+            if net_receive_listen:
                 net_receives[len(net_receives) - 1].append(line)
                 if line == 'end)':
-                    attention = False
+                    net_receive_listen = False
             if 'net.Receive' in line:
-                attention = True
+                net_receive_listen = True
                 net_receives.append([])
                 net_receives[len(net_receives) - 1].append(line)
         net_receives = format_array(net_receives)
@@ -40,18 +42,19 @@ def check_file(path, file):
                 continue
             print("Possible server side exploitable net message: " + re.search(r'\"(.+?)\"', receive[0]).group(1) +
                   "\nReason: " + exploit)
+    # Check client side
     elif file.startswith("cl_") or 'client' in path:
         f = open(path + "/" + file)
         content = f.read()
-        attention = False
+        net_start_listener = False
         net_sending = []
         for line in content.splitlines():
-            if attention:
+            if net_start_listener:
                 net_sending[len(net_sending) - 1].append(line)
                 if line == 'net.SendToServer()':
-                    attention = False
+                    net_start_listener = False
             if 'net.Start' in line:
-                attention = True
+                net_start_listener = True
                 net_sending.append([])
                 net_sending[len(net_sending) - 1].append(line)
         net_sending = format_array(net_sending)

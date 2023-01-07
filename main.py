@@ -1,6 +1,7 @@
 from os import listdir
 from os.path import isfile
 import re
+import argparse
 
 debug = False
 
@@ -117,4 +118,11 @@ def format_array(big_array):
 
 
 if __name__ == '__main__':
-    load_dir("addons")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input-dir', type=str, action='store', help='Input directory')
+    args = parser.parse_args()
+    if not args.input_dir:
+        print("python main.py --input-dir addons")
+    else:
+        print("Starting Addonsploit")
+        load_dir(args.input_dir)

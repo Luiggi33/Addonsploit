@@ -33,6 +33,10 @@ def check_file(path, file):
                 net_receive_listen = True
                 net_receives.append([])
                 net_receives[len(net_receives) - 1].append(line)
+            if 'sql' in line or 'query' in line or 'Query' in line:
+                sql_insert = re.search(r'\.\.\s*(.+?)\s*\.\.', line)
+                if sql_insert and 'sql.SQLStr' not in sql_insert:
+                    print("Possible server side unsafe sql query in " + path + "/" + file)
         net_receives = format_array(net_receives)
         for receive in net_receives:
             is_exploitable, exploit = check_net_receive(receive)
@@ -41,7 +45,7 @@ def check_file(path, file):
                     print("Not exploitable: " + re.search(r'\"(.+?)\"', receive[0]).group(1))
                 continue
             print("Possible server side exploitable net message: " + re.search(r'\"(.+?)\"', receive[0]).group(1) +
-                  "\nReason: " + exploit)
+                  "\nReason: " + exploit + "\tFile: " + path + "/" + file)
     # Check client side
     elif file.startswith("cl_") or 'client' in path:
         f = open(path + "/" + file)
@@ -65,7 +69,7 @@ def check_file(path, file):
                     print("Not exploitable: " + re.search(r'\"(.+?)\"', send[0]).group(1))
                 continue
             print("Possible client side exploitable net message: " + re.search(r'\"(.+?)\"', send[0]).group(1) +
-                  "\nReason: " + exploit)
+                  "\nReason: " + exploit + "\tFile: " + path + "/" + file)
 
 
 def check_net_send(net_send):

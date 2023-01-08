@@ -4,6 +4,7 @@ import re
 import argparse
 
 debug = False
+output = [[], []]
 
 
 def load_dir(path):
@@ -20,8 +21,8 @@ def check_file(path, file):
     if not file.endswith(".lua"):
         return
     # Check server side files
-    if file.startswith("sv_") or file == "init.lua" or 'server' in path:
-        f = open(path + "/" + file)
+    if file.startswith("sv_") or file == "init.lua" or '/server/' in path:
+        f = open(path + "/" + file, encoding="utf8")
         content = f.read()
         net_receive_listen = False
         net_receives = []
@@ -36,20 +37,22 @@ def check_file(path, file):
                 net_receives[len(net_receives) - 1].append(line)
             if 'sql' in line or 'query' in line or 'Query' in line:
                 sql_insert = re.search(r'\.\.\s*(.+?)\s*\.\.', line)
-                if sql_insert and 'sql.SQLStr' not in sql_insert:
+                if sql_insert and 'sql.SQLStr' not in sql_insert.group(1):
                     print("Possible server side unsafe sql query in " + path + "/" + file)
+                    output[0].append(["Possible server side unsafe sql query in " + path + "/" + file])
         net_receives = format_array(net_receives)
         for receive in net_receives:
             is_exploitable, exploit = check_net_receive(receive)
             if not is_exploitable:
                 if debug:
-                    print("Not exploitable: " + re.search(r'\"(.+?)\"', receive[0]).group(1))
+                    print("Not exploitable: " + re.search(r'[\'"](.+?)[\'"]', receive[0]).group(1))
                 continue
-            print("Possible server side exploitable net message: " + re.search(r'\"(.+?)\"', receive[0]).group(1) +
+            print("Possible server side exploitable net message: " + re.search(r'[\'"](.+?)[\'"]', receive[0]).group(1) +
                   "\nReason: " + exploit + "\tFile: " + path + "/" + file)
+            output[0].append([re.search(r'[\'"](.+?)[\'"]', receive[0]).group(1), exploit, path + "/" + file])
     # Check client side
     elif file.startswith("cl_") or 'client' in path:
-        f = open(path + "/" + file)
+        f = open(path + "/" + file, encoding="utf8")
         content = f.read()
         net_start_listener = False
         net_sending = []
@@ -67,11 +70,11 @@ def check_file(path, file):
             is_exploitable, exploit = check_net_send(send)
             if not is_exploitable:
                 if debug:
-                    print("Not exploitable: " + re.search(r'\"(.+?)\"', send[0]).group(1))
+                    print("Not exploitable: " + re.search(r'[\'"](.+?)[\'"]', send[0]).group(1))
                 continue
-            print("Possible client side exploitable net message: " + re.search(r'\"(.+?)\"', send[0]).group(1) +
+            print("Possible client side exploitable net message: " + re.search(r'[\'"](.+?)[\'"]', send[0]).group(1) +
                   "\nReason: " + exploit + "\tFile: " + path + "/" + file)
-
+            output[1].append([re.search(r'[\'"](.+?)[\'"]', send[0]).group(1), exploit, path + "/" + file])
 
 def check_net_send(net_send):
     is_exploitable = False
@@ -126,3 +129,13 @@ if __name__ == '__main__':
     else:
         print("Starting Addonsploit")
         load_dir(args.input_dir)
+        print("Finished Addonsploit")
+        # write output to file
+        f = open("output.txt", "w")
+        f.write("Server side exploits:\n")
+        for line in output[0]:
+            f.write(' '.join(map(str, line)) + "\n")
+        f.write("\nClient side exploits:\n")
+        for line in output[1]:
+            f.write(' '.join(map(str, line)) + "\n")
+        f.close()
